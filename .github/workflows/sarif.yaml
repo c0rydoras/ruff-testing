@@ -1,0 +1,45 @@
+---
+name: Sarif
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: "Lint"
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - run: |
+          poetry config virtualenvs.create true --local
+          poetry config virtualenvs.in-project true --local
+
+      - uses: actions/cache@v3
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Lint
+        run: poetry run ruff check --output-format="sarif" . > ruff.sarif
+
+      # theres no real reason to do this, --output-format="github" is a lot more convenient!
+      - name: Upload results to security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "ruff.sarif"
